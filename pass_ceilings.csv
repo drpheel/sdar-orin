@@ -1,0 +1,6 @@
+average_passes,block_tokens,ms_per_pass,seconds_per_block,ceiling_tok_s
+1,32,60,0.06,533.33
+2,32,60,0.12,266.67
+4,32,60,0.24,133.33
+8,32,60,0.48,66.67
+32,32,60,1.92,16.67

@@ -13,9 +13,10 @@ import struct
 import time
 
 # cudaMallocAsync on this nvgpu driver stops near 2.5 GiB. The native caching
-# allocator can take the 3.8 GiB weight buffer. Its NVML assert only fires
-# once an allocation has already failed, so leave that backend unset.
-os.environ.pop("PYTORCH_CUDA_ALLOC_CONF", None)
+# allocator can take the 3.8 GiB weight buffer. Expandable segments let the
+# forward's next allocation grow that pool instead of asking for a fresh 1 GiB
+# block that the 7.4 GiB board no longer has free.
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 import torch
 from accelerate import init_empty_weights

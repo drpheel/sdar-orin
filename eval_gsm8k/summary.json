@@ -1,0 +1,140 @@
+{
+  "protocol": {
+    "benchmark": "gsm8k",
+    "harness": "OpenCompass gsm8k_0shot_v2_gen_17d799",
+    "evaluator": "MATHEvaluator v2 is_equiv after math_postprocess_v2",
+    "reference": "gsm8k_dataset_postprocess",
+    "split": "test[:100]",
+    "fewshot": 0,
+    "prompt": "Please reason step by step, and put your final answer within \\boxed{}.",
+    "decoding": "greedy",
+    "steps": 32,
+    "strategy": "static",
+    "block_size": 32,
+    "max_new_tokens": 512,
+    "metric": "accuracy"
+  },
+  "n": 24,
+  "accuracy": 0.5833333333333334,
+  "correct": 14,
+  "mean_prefill_s": 0.7930416666666665,
+  "mean_decode_s": 32.834624999999996,
+  "correct_answers": {
+    "n": 14,
+    "mean_answer_confidence": 0.9752968750000001,
+    "mean_answer_commit_step": 17.28125
+  },
+  "incorrect_answers": {
+    "n": 10,
+    "mean_answer_confidence": 0.9863843750000002,
+    "mean_answer_commit_step": 24.0
+  },
+  "clearest_correct_trace": {
+    "index": 0,
+    "question": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
+    "gold_norm": "18",
+    "correct": true,
+    "prediction": "18",
+    "completion": "To figure out how much Janet makes every day at the farmers' market, we need to follow these steps:\n\n1. **Calculate the total number of eggs laid by the ducks:**\n  Janet's ducks lay 16 eggs per day.\n\n2. **Determine the number of eggs eaten for breakfast:**\n  Janet eats 3 eggs for breakfast every morning.\n\n3. **Calculate the number of eggs used for baking muffins:**\n  Janet bakes muffins with 4 eggs every day.\n\n4. **Find the number of eggs remaining for sale at the farmers' market:**\n  Subtract the eggs eaten for breakfast and used for baking muffins from the total eggs laid:\n  $$\n  16 - 3 - 4 = 9 \\text{ eggs}\n  $$\n\n5. **Calculate the total revenue from selling the remaining eggs:**\n  Each egg is sold for $2:\n  $$\n  9 \\text{ eggs} \\times 2 \\text{ dollars per egg} = 18 \\text{ dollars}\n  $$\n\nTherefore, Janet makes $\\boxed{18}$ dollars every day at the farmers' market.",
+    "trace_summary": "The boxed span is '1' committed at step 3 of 32 in block 7 (p=1.000, runner-up '2' p=0.000); '8' committed at step 4 of 32 in block 7 (p=1.000, runner-up '6' p=0.000). Those tokens were committed earlier than the rest of the completion, so they were among the positions the model was most sure about while the surrounding text was still masked.",
+    "answer_trace": [
+      {
+        "block": 7,
+        "index": 4,
+        "token_id": 16,
+        "piece": "1",
+        "commit_step": 3,
+        "confidence": 1.0,
+        "runner_up_id": 17,
+        "runner_up": "2",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      },
+      {
+        "block": 7,
+        "index": 5,
+        "token_id": 23,
+        "piece": "8",
+        "commit_step": 4,
+        "confidence": 1.0,
+        "runner_up_id": 21,
+        "runner_up": "6",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      }
+    ],
+    "answer_block_unmasking": [
+      "step 0: ' makes'@0 p=1.00",
+      "step 1: 'boxed'@2 p=0.89",
+      "step 2: '{'@3 p=1.00",
+      "step 3: '1'@4 p=1.00",
+      "step 4: '8'@5 p=1.00",
+      "step 6: '}$'@6 p=0.99",
+      "step 9: ' $\\\\'@1 p=0.98",
+      "step 12: ' dollars'@7 p=0.96",
+      "step 13: ' every'@8 p=0.99",
+      "step 14: ' day'@9 p=1.00",
+      "step 15: \"'\"@13 p=1.00",
+      "step 16: ' the'@11 p=1.00",
+      "step 17: ' farmers'@12 p=1.00",
+      "step 18: ' market'@14 p=1.00",
+      "step 19: ' at'@10 p=1.00",
+      "step 31: '.'@15 p=1.00"
+    ]
+  },
+  "most_confident_incorrect_trace": {
+    "index": 5,
+    "question": "Kylar went to the store to buy glasses for his new apartment. One glass costs $5, but every second glass costs only 60% of the price. Kylar wants to buy 16 glasses. How much does he need to pay for them?",
+    "gold_norm": "64",
+    "correct": false,
+    "prediction": "78",
+    "completion": " Kylar wants to buy 16 glasses. The first 15 glasses cost $5 each, so the total cost for these glasses is 15 * $5 = $75.\nThe 16th glass costs 60% of the price of a regular glass, which means it costs 0.6 * $5 = $3.\nTo find out how much Kylar needs to pay in total, we add the cost of the first 15 glasses and the cost of the 16th glass: $75 + $3 = $78.\nSo Kylar needs to pay $78 for the glasses.\nThe answer is $\\boxed{78}$.",
+    "trace_summary": "The boxed span is '7' committed at step 23 of 32 in block 4 (p=1.000, runner-up '1' p=0.000); '8' committed at step 24 of 32 in block 4 (p=1.000, runner-up '5' p=0.000). Those tokens were committed later than the rest of the completion, after the model had already filled the positions it was more sure of.",
+    "answer_trace": [
+      {
+        "block": 4,
+        "index": 14,
+        "token_id": 22,
+        "piece": "7",
+        "commit_step": 23,
+        "confidence": 1.0,
+        "runner_up_id": 16,
+        "runner_up": "1",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      },
+      {
+        "block": 4,
+        "index": 15,
+        "token_id": 23,
+        "piece": "8",
+        "commit_step": 24,
+        "confidence": 1.0,
+        "runner_up_id": 20,
+        "runner_up": "5",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      }
+    ],
+    "answer_block_unmasking": [
+      "step 0: ' pay'@0 p=1.00",
+      "step 10: ' $'@1 p=0.80",
+      "step 11: '8'@3 p=0.99",
+      "step 12: '7'@2 p=1.00",
+      "step 13: ' for'@4 p=0.94",
+      "step 15: ' the'@5 p=0.76",
+      "step 16: ' glasses'@6 p=0.78",
+      "step 17: ' is'@10 p=0.98",
+      "step 18: ' answer'@9 p=1.00",
+      "step 20: 'boxed'@12 p=0.96",
+      "step 22: '{'@13 p=1.00",
+      "step 23: '7'@14 p=1.00",
+      "step 24: '8'@15 p=1.00",
+      "step 25: '}'@16 p=1.00",
+      "step 26: '$.'@17 p=1.00",
+      "step 29: ' $\\\\'@11 p=1.00",
+      "step 30: '.\\n'@7 p=0.68",
+      "step 31: 'The'@8 p=1.00"
+    ]
+  }
+}

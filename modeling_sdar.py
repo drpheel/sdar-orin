@@ -74,14 +74,15 @@ class SDARRMSNorm(nn.Module):
         self.variance_epsilon = eps
 
     def forward(self, hidden_states):
-        # RMSNorm body. Runs 113 times per forward on this checkpoint: 4 times in each of the
+        # Fused RMSNorm, 113 times per forward on this checkpoint: 4 times in each of the
         # 28 decoder layers (steps 3.1, 3.2.1 q_norm, 3.2.2 k_norm, 3.4) plus once at step 4.
-        # x * rsqrt(mean(x^2) + eps) * weight.
-        input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(torch.float32)
-        variance = hidden_states.pow(2).mean(-1, keepdim=True)
-        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        # x * rsqrt(mean(x^2) + eps) * weight, in one kernel instead of a cast, pow, mean, and rsqrt.
+        return F.rms_norm(
+            hidden_states,
+            (hidden_states.shape[-1],),
+            self.weight,
+            self.variance_epsilon,
+        )
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -265,12 +266,11 @@ class SDARAttention(nn.Module):
             key_states, value_states = past_key_value.update(
                 key_states, value_states, self.layer_idx)
         elif past_key_value is not None and not kwargs.get("store_kv", False) and len(past_key_value) > self.layer_idx:
-            # Read the cache and concatenate. Do not store.
-            past_key_states, past_value_states = past_key_value[self.layer_idx]
-            key_states = torch.cat(
-                [past_key_states, key_states], dim=-2)
-            value_states = torch.cat(
-                [past_value_states, value_states], dim=-2)
+            # Read the cache and concatenate. Do not store. DynamicCache keeps each layer's
+            # keys and values on the layer object; it is not a subscriptable list of tuples.
+            layer = past_key_value.layers[self.layer_idx]
+            key_states = torch.cat([layer.keys, key_states], dim=-2)
+            value_states = torch.cat([layer.values, value_states], dim=-2)
 
         # Step 3.2.6, 28 times per forward: attention scores. No learned weight. SDPA on sm_87.
         if attention_mask is not None:
