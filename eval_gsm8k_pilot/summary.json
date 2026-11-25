@@ -1,0 +1,86 @@
+{
+  "protocol": {
+    "benchmark": "gsm8k",
+    "harness": "OpenCompass gsm8k_0shot_v2_gen_17d799",
+    "evaluator": "MATHEvaluator v2 is_equiv after math_postprocess_v2",
+    "reference": "gsm8k_dataset_postprocess",
+    "split": "test[:1]",
+    "fewshot": 0,
+    "prompt": "Please reason step by step, and put your final answer within \\boxed{}.",
+    "decoding": "greedy",
+    "steps": 32,
+    "strategy": "static",
+    "block_size": 32,
+    "max_new_tokens": 512,
+    "metric": "accuracy"
+  },
+  "n": 1,
+  "accuracy": 1.0,
+  "correct": 1,
+  "mean_prefill_s": 4.132,
+  "mean_decode_s": 30.456,
+  "correct_answers": {
+    "n": 1,
+    "mean_answer_confidence": 1.0,
+    "mean_answer_commit_step": 3.5
+  },
+  "incorrect_answers": {
+    "n": 0,
+    "mean_answer_confidence": null,
+    "mean_answer_commit_step": null
+  },
+  "clearest_correct_trace": {
+    "index": 0,
+    "question": "Janet\u2019s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market?",
+    "gold_norm": "18",
+    "correct": true,
+    "prediction": "18",
+    "completion": "To figure out how much Janet makes every day at the farmers' market, we need to follow these steps:\n\n1. **Calculate the total number of eggs laid by the ducks:**\n  Janet's ducks lay 16 eggs per day.\n\n2. **Determine the number of eggs eaten for breakfast:**\n  Janet eats 3 eggs for breakfast every morning.\n\n3. **Calculate the number of eggs used for baking muffins:**\n  Janet bakes muffins with 4 eggs every day.\n\n4. **Find the number of eggs remaining for sale at the farmers' market:**\n  Subtract the eggs eaten for breakfast and used for baking muffins from the total eggs laid:\n  $$\n  16 - 3 - 4 = 9 \\text{ eggs}\n  $$\n\n5. **Calculate the total revenue from selling the remaining eggs:**\n  Each egg is sold for $2:\n  $$\n  9 \\text{ eggs} \\times 2 \\text{ dollars per egg} = 18 \\text{ dollars}\n  $$\n\nTherefore, Janet makes $\\boxed{18}$ dollars every day at the farmers' market.",
+    "trace_summary": "The boxed span is '1' committed at step 3 of 32 in block 7 (p=1.000, runner-up '2' p=0.000); '8' committed at step 4 of 32 in block 7 (p=1.000, runner-up '6' p=0.000). Those tokens were committed earlier than the rest of the completion, so they were among the positions the model was most sure about while the surrounding text was still masked.",
+    "answer_trace": [
+      {
+        "block": 7,
+        "index": 4,
+        "token_id": 16,
+        "piece": "1",
+        "commit_step": 3,
+        "confidence": 1.0,
+        "runner_up_id": 17,
+        "runner_up": "2",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      },
+      {
+        "block": 7,
+        "index": 5,
+        "token_id": 23,
+        "piece": "8",
+        "commit_step": 4,
+        "confidence": 1.0,
+        "runner_up_id": 21,
+        "runner_up": "6",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      }
+    ],
+    "answer_block_unmasking": [
+      "step 0: ' makes'@0 p=1.00",
+      "step 1: 'boxed'@2 p=0.89",
+      "step 2: '{'@3 p=1.00",
+      "step 3: '1'@4 p=1.00",
+      "step 4: '8'@5 p=1.00",
+      "step 6: '}$'@6 p=0.99",
+      "step 9: ' $\\\\'@1 p=0.98",
+      "step 12: ' dollars'@7 p=0.96",
+      "step 13: ' every'@8 p=0.99",
+      "step 14: ' day'@9 p=1.00",
+      "step 15: \"'\"@13 p=1.00",
+      "step 16: ' the'@11 p=1.00",
+      "step 17: ' farmers'@12 p=1.00",
+      "step 18: ' market'@14 p=1.00",
+      "step 19: ' at'@10 p=1.00",
+      "step 31: '.'@15 p=1.00"
+    ]
+  },
+  "most_confident_incorrect_trace": null
+}

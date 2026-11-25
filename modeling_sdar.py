@@ -47,12 +47,19 @@ from transformers.utils import auto_docstring, can_return_tuple, is_torch_flex_a
 from .configuration_sdar import SDARConfig
 
 import torch.nn.functional as F
+from torch.nn.attention import SDPBackend, sdpa_kernel
 
 try:
     from liger_kernel.ops.swiglu import LigerSiLUMulFunction  # noqa: F401
     liger_kernel_is_available = True
 except ImportError:
     liger_kernel_is_available = False
+
+try:
+    from sdar_kernels import rope_inplace
+    rope_kernel_available = True
+except ImportError:
+    rope_kernel_available = False
 
 
 if is_torch_flex_attn_available():
@@ -61,6 +68,34 @@ if is_torch_flex_attn_available():
 
 
 logger = logging.get_logger(__name__)
+
+
+def stack_row_weights(*parts):
+    """View stacked out-feature rows as one matrix when the rows already sit back to back.
+
+    The packed loader places q, k, and v in that order with no gap, so the fused
+    GEMM reads the same bytes as the three projections and allocates nothing.
+    """
+    first = parts[0]
+    if first.ndim != 2 or not first.is_contiguous():
+        return None
+    cols = first.shape[1]
+    if first.stride() != (cols, 1):
+        return None
+    ptr = first.data_ptr()
+    rows = 0
+    for part in parts:
+        if (
+            part.data_ptr() != ptr
+            or part.ndim != 2
+            or part.shape[1] != cols
+            or part.stride() != (cols, 1)
+            or part.dtype != first.dtype
+        ):
+            return None
+        ptr += part.nbytes
+        rows += part.shape[0]
+    return first.as_strided((rows, cols), (cols, 1))
 
 
 @use_kernel_forward_from_hub("RMSNorm")
@@ -104,14 +139,11 @@ class SDARMLP(nn.Module):
 
     def forward(self, x):
         # Step 3.5, SwiGLU MLP. Runs 28 times per forward, once in each decoder layer.
-        # This board takes the else branch, and each call does these once:
-        # 3.5.1 gate_proj, 3.5.2 silu, 3.5.3 up_proj, 3.5.4 multiply, 3.5.5 down_proj.
+        # gate and up stay two GEMMs: packing them into one was slower on this board,
+        # both eager and inside the CUDA graph. Then silu, multiply, and down_proj.
         if liger_kernel_is_available:
             return self.down_proj(LigerSiLUMulFunction.apply(self.gate_proj(x), self.up_proj(x)))
-        else:
-            down_proj = self.down_proj(self.act_fn(
-                self.gate_proj(x)) * self.up_proj(x))
-            return down_proj
+        return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
 
 def rotate_half(x):
@@ -141,6 +173,17 @@ def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     Returns:
         `tuple(torch.Tensor)` comprising of the query and key tensors rotated using the Rotary Position Embedding.
     """
+    if (
+        rope_kernel_available
+        and q.is_cuda
+        and not q.requires_grad
+        and unsqueeze_dim == 1
+        and q.ndim == 4
+    ):
+        # One kernel per tensor, in place. The eager path below is the same rotate_half math.
+        rope_inplace(q, cos, sin)
+        rope_inplace(k, cos, sin)
+        return q, k
     cos = cos.unsqueeze(unsqueeze_dim)
     sin = sin.unsqueeze(unsqueeze_dim)
     q_embed = (q * cos) + (rotate_half(q) * sin)
@@ -224,6 +267,10 @@ class SDARAttention(nn.Module):
         self.q_norm = SDARRMSNorm(self.head_dim, eps=config.rms_norm_eps)
         # thus post q_norm does not need reshape
         self.k_norm = SDARRMSNorm(self.head_dim, eps=config.rms_norm_eps)
+        self.q_size = config.num_attention_heads * self.head_dim
+        self.kv_size = config.num_key_value_heads * self.head_dim
+        # Set by bind_fused_projections when q, k, and v rows share one contiguous matrix.
+        self.qkv_weight = None
         self.sliding_window = config.sliding_window
         if not (
             self.config.use_sliding_window
@@ -245,15 +292,19 @@ class SDARAttention(nn.Module):
         bsz, q_len = input_shape
         hidden_shape = (*input_shape, -1, self.head_dim)
 
-        # Step 3.2.1, 28 times per forward: q_proj (hidden -> heads * head_dim), then q_norm.
-        query_states = self.q_norm(self.q_proj(
-            hidden_states).view(hidden_shape)).transpose(1, 2)
-        # Step 3.2.2, 28 times per forward: k_proj (hidden -> kv_heads * head_dim), then k_norm.
-        key_states = self.k_norm(self.k_proj(
-            hidden_states).view(hidden_shape)).transpose(1, 2)
-        # Step 3.2.3, 28 times per forward: v_proj (hidden -> kv_heads * head_dim). No value norm.
-        value_states = self.v_proj(hidden_states).view(
-            hidden_shape).transpose(1, 2)
+        # Steps 3.2.1–3.2.3, 28 times per forward. Packed checkpoints run one QKV GEMM and
+        # split it; otherwise q, k, and v are three GEMMs. q and k are RMSNormed per head.
+        if self.qkv_weight is not None:
+            query_states, key_states, value_states = F.linear(
+                hidden_states, self.qkv_weight
+            ).split((self.q_size, self.kv_size, self.kv_size), dim=-1)
+        else:
+            query_states = self.q_proj(hidden_states)
+            key_states = self.k_proj(hidden_states)
+            value_states = self.v_proj(hidden_states)
+        query_states = self.q_norm(query_states.view(hidden_shape)).transpose(1, 2)
+        key_states = self.k_norm(key_states.view(hidden_shape)).transpose(1, 2)
+        value_states = value_states.view(hidden_shape).transpose(1, 2)
 
         # Step 3.2.4, 28 times per forward: rotate Q and K with the step-2 RoPE tables. No learned weight.
         cos, sin = position_embeddings
@@ -272,23 +323,30 @@ class SDARAttention(nn.Module):
             key_states = torch.cat([layer.keys, key_states], dim=-2)
             value_states = torch.cat([layer.values, value_states], dim=-2)
 
-        # Step 3.2.6, 28 times per forward: attention scores. No learned weight. SDPA on sm_87.
+        # Step 3.2.6, 28 times per forward: attention scores. No learned weight.
+        # cuDNN runs this grouped-query score faster than flash: 32 queries against
+        # a few hundred cached keys. Flash remains the fallback for a shape cuDNN rejects.
         if attention_mask is not None:
             attention_mask = attention_mask.bool()
             if torch.all(attention_mask):
                 attention_mask = None
-        attn_output = F.scaled_dot_product_attention(
-            query=query_states,
-            key=key_states,
-            value=value_states,
-            attn_mask=attention_mask,
-            is_causal=False,
-            scale=self.scaling,
-            enable_gqa=True
-        )
-        attn_output = attn_output.transpose(1, 2).contiguous()
-
-        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        with sdpa_kernel(
+            [SDPBackend.CUDNN_ATTENTION, SDPBackend.FLASH_ATTENTION],
+            set_priority=True,
+        ):
+            attn_output = F.scaled_dot_product_attention(
+                query=query_states,
+                key=key_states,
+                value=value_states,
+                attn_mask=attention_mask,
+                is_causal=False,
+                scale=self.scaling,
+                enable_gqa=True,
+            )
+        # SDPA writes [batch, heads, seq, dim]. o_proj wants [batch, seq, heads * dim].
+        # One transpose copy. A second contiguous after the reshape is a no-op, and a
+        # hand-written merge kernel was slower than this copy on this board.
+        attn_output = attn_output.transpose(1, 2).contiguous().view(*input_shape, -1)
         # Step 3.2.7, 28 times per forward: o_proj, heads * head_dim -> hidden.
         attn_output = self.o_proj(attn_output)
         return attn_output, None  # , attn_weights
@@ -766,6 +824,18 @@ class SDARForCausalLM(SDARPreTrainedModel, GenerationMixin):
 
         # Initialize weights and apply final processing
         self.post_init()
+
+    def bind_fused_projections(self):
+        """Attach a packed QKV matrix when the loader stored q, k, and v rows together."""
+        qkv_layers = 0
+        for layer in self.model.layers:
+            attn = layer.self_attn
+            fused = stack_row_weights(
+                attn.q_proj.weight, attn.k_proj.weight, attn.v_proj.weight)
+            if fused is not None and fused.shape[0] == attn.q_size + 2 * attn.kv_size:
+                attn.qkv_weight = fused
+                qkv_layers += 1
+        return qkv_layers
 
     def get_input_embeddings(self):
         return self.model.embed_tokens

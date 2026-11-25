@@ -1,0 +1,123 @@
+{
+  "protocol": {
+    "benchmark": "gsm8k",
+    "harness": "OpenCompass gsm8k_0shot_v2_gen_17d799",
+    "evaluator": "MATHEvaluator v2 is_equiv after math_postprocess_v2",
+    "reference": "gsm8k_dataset_postprocess",
+    "split": "test[:10]",
+    "fewshot": 0,
+    "prompt": "Please reason step by step, and put your final answer within \\boxed{}.",
+    "decoding": "greedy",
+    "steps": 32,
+    "strategy": "dynamic",
+    "threshold": 0.99,
+    "block_size": 32,
+    "max_new_tokens": 512,
+    "metric": "accuracy"
+  },
+  "n": 10,
+  "accuracy": 0.6,
+  "correct": 6,
+  "mean_prefill_s": 2.6788000000000003,
+  "mean_decode_s": 28.4198,
+  "correct_answers": {
+    "n": 6,
+    "mean_answer_confidence": 0.9743470588235297,
+    "mean_answer_commit_step": 9.764705882352942
+  },
+  "incorrect_answers": {
+    "n": 3,
+    "mean_answer_confidence": 0.9535857142857144,
+    "mean_answer_commit_step": 12.857142857142858
+  },
+  "clearest_correct_trace": {
+    "index": 1,
+    "question": "A robe takes 2 bolts of blue fiber and half that much white fiber.  How many bolts in total does it take?",
+    "gold_norm": "3",
+    "correct": true,
+    "prediction": "3",
+    "completion": "To figure out the total number of bolts of fiber required for a robe, we need to consider both the blue and white fibers.\n\n1. **Blue Fiber Requirement**: The robe requires exactly 2 bolts of blue fiber.\n\n2. **White Fiber Requirement**: The robe requires half as much white fiber as blue fiber. Since the robe needs 2 bolts of blue fiber, the amount of white fiber required is:\n  $$\n  \\frac{2}{2} = 1 \\text{ bolt}\n  $$\n\n3. **Total Fiber Requirement**: To find the total number of bolts required, we add the amount of blue fiber and white fiber together:\n  $$\n  2 \\text{ bolts (blue)} + 1 \\text{ bolt (white)} = 3 \\text{ bolts}\n  $$\n\nTherefore, the total number of bolts of fiber required for the robe is $\\boxed{3}$.",
+    "trace_summary": "The boxed span is '3' committed at step 14 of 32 in block 5 (p=1.000, runner-up '2' p=0.000). Those tokens were committed later than the rest of the completion, after the model had already filled the positions it was more sure of.",
+    "answer_trace": [
+      {
+        "block": 5,
+        "index": 23,
+        "token_id": 18,
+        "piece": "3",
+        "commit_step": 14,
+        "confidence": 1.0,
+        "runner_up_id": 17,
+        "runner_up": "2",
+        "runner_up_p": 0.0,
+        "margin": 1.0
+      }
+    ],
+    "answer_block_unmasking": [
+      "step 0: '{'@0 p=1.00, ' bolts'@1 p=1.00, ' '@3 p=0.99",
+      "step 1: '}\\n'@2 p=1.00, ' $$'@4 p=1.00, '\\n\\n'@5 p=1.00, ','@7 p=1.00",
+      "step 2: ' the'@8 p=0.90",
+      "step 3: 'Therefore'@6 p=0.88",
+      "step 4: ' total'@9 p=0.81",
+      "step 5: ' number'@10 p=1.00, ' of'@11 p=1.00, ' bolts'@12 p=1.00",
+      "step 6: ' of'@13 p=0.99",
+      "step 7: ' fiber'@14 p=1.00",
+      "step 8: ' required'@15 p=0.99",
+      "step 9: ' for'@16 p=0.96",
+      "step 10: ' robe'@18 p=1.00, ' is'@19 p=1.00",
+      "step 13: 'boxed'@21 p=0.98",
+      "step 14: '{'@22 p=1.00, '3'@23 p=1.00, '}'@24 p=0.99, '$.'@25 p=0.99",
+      "step 15: ' $\\\\'@20 p=1.00",
+      "step 16: ' the'@17 p=0.72"
+    ]
+  },
+  "most_confident_incorrect_trace": {
+    "index": 5,
+    "question": "Kylar went to the store to buy glasses for his new apartment. One glass costs $5, but every second glass costs only 60% of the price. Kylar wants to buy 16 glasses. How much does he need to pay for them?",
+    "gold_norm": "64",
+    "correct": false,
+    "prediction": "78",
+    "completion": " Kylar wants to buy 16 glasses. The first 15 glasses cost $5 each, so the total cost for these glasses is 15 * $5 = $75.\nThe 16th glass costs 60% of the price of a regular glass, which means it costs 0.6 * $5 = $3.\nTo find out how much Kylar needs to pay in total, we add the cost of the first 15 glasses and the cost of the 16th glass: $75 + $3 = $78.\nSo Kylar needs to pay $78 for the glasses.\nThe answer is $\\boxed{78}$.",
+    "trace_summary": "The boxed span is '7' committed at step 20 of 32 in block 4 (p=1.000, runner-up '$' p=0.000); '8' committed at step 20 of 32 in block 4 (p=0.999, runner-up '{' p=0.001). Those tokens were committed later than the rest of the completion, after the model had already filled the positions it was more sure of.",
+    "answer_trace": [
+      {
+        "block": 4,
+        "index": 14,
+        "token_id": 22,
+        "piece": "7",
+        "commit_step": 20,
+        "confidence": 0.9996,
+        "runner_up_id": 3,
+        "runner_up": "$",
+        "runner_up_p": 0.0003,
+        "margin": 0.9993
+      },
+      {
+        "block": 4,
+        "index": 15,
+        "token_id": 23,
+        "piece": "8",
+        "commit_step": 20,
+        "confidence": 0.9989,
+        "runner_up_id": 90,
+        "runner_up": "{",
+        "runner_up_p": 0.0006,
+        "margin": 0.9984
+      }
+    ],
+    "answer_block_unmasking": [
+      "step 0: ' pay'@0 p=1.00",
+      "step 10: ' $'@1 p=0.80",
+      "step 11: '8'@3 p=0.99",
+      "step 12: '7'@2 p=1.00",
+      "step 13: ' for'@4 p=0.93",
+      "step 15: ' the'@5 p=0.76",
+      "step 16: ' glasses'@6 p=0.78",
+      "step 17: ' is'@10 p=0.98",
+      "step 18: ' answer'@9 p=1.00",
+      "step 19: 'boxed'@12 p=0.96",
+      "step 20: ' $\\\\'@11 p=0.99, '{'@13 p=1.00, '7'@14 p=1.00, '8'@15 p=1.00, '}'@16 p=1.00, '$.'@17 p=1.00",
+      "step 21: '.\\n'@7 p=0.68",
+      "step 22: 'The'@8 p=1.00"
+    ]
+  }
+}

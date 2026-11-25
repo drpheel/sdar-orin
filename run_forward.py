@@ -79,22 +79,63 @@ def read_header(path):
     return data_base, tensors
 
 
+# Q, K, V rows, in the order the fused GEMM splits them.
+_FUSED_ROWS = (
+    ("self_attn.q_proj.weight", "qkv", 0),
+    ("self_attn.k_proj.weight", "qkv", 1),
+    ("self_attn.v_proj.weight", "qkv", 2),
+)
+
+
+def fusion_slot(name):
+    """Return (group, order) when this weight is part of a packed GEMM, else (None, None)."""
+    for suffix, kind, index in _FUSED_ROWS:
+        if name.endswith(suffix):
+            return name[: -len(suffix)] + kind, index
+    return None, None
+
+
+def _checked_nbytes(item):
+    numel = 1
+    for dim in item["shape"]:
+        numel *= dim
+    expect = numel * item["dtype"].itemsize
+    if expect != item["nbytes"]:
+        raise RuntimeError(
+            f"{item['name']} is {item['nbytes']} bytes, shape {item['shape']} wants {expect}"
+        )
+    return item["nbytes"]
+
+
 def plan_offsets(tensors):
-    """Assign each tensor a 256-byte-aligned offset in the single CUDA buffer."""
-    offset = 0
+    """Assign offsets in the single CUDA buffer.
+
+    Standalone tensors stay 256-byte aligned. Q, K, and V are packed with no gap
+    so one GEMM can view them as a single matrix without copying weights.
+    """
+    groups = {}
+    singles = []
     for item in tensors:
+        key, index = fusion_slot(item["name"])
+        if key is None:
+            singles.append(item)
+        else:
+            groups.setdefault(key, []).append((index, item))
+
+    offset = 0
+
+    def place(item, at):
+        item["offset"] = at
+        return at + _checked_nbytes(item)
+
+    for item in singles:
         offset = (offset + ALIGN - 1) & ~(ALIGN - 1)
-        item["offset"] = offset
-        numel = 1
-        for dim in item["shape"]:
-            numel *= dim
-        expect = numel * item["dtype"].itemsize
-        # Catch a header/shape mismatch before we view the bytes as BF16.
-        if expect != item["nbytes"]:
-            raise RuntimeError(
-                f"{item['name']} is {item['nbytes']} bytes, shape {item['shape']} wants {expect}"
-            )
-        offset += item["nbytes"]
+        offset = place(item, offset)
+    for members in groups.values():
+        members.sort(key=lambda pair: pair[0])
+        offset = (offset + ALIGN - 1) & ~(ALIGN - 1)
+        for _, item in members:
+            offset = place(item, offset)
     return offset
 
 
@@ -159,6 +200,8 @@ def load_model():
     # RoPE's inv_freq buffer is not in the checkpoint. Rebuild it on the GPU.
     rotary = model.model.rotary_emb.__class__(config, device="cuda")
     model.model.rotary_emb = rotary
+    qkv_layers = model.bind_fused_projections()
+    print(f"fused qkv {qkv_layers}", flush=True)
     # Keep the packed storage alive for as long as the parameter views exist.
     model._weight_storage = storage
     model.eval()

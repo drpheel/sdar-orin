@@ -623,7 +623,7 @@ def run(args):
     pending = [problem for problem in problems if problem["index"] not in done]
     print(
         f"problems {len(problems)}  done {len(done)}  pending {len(pending)}  "
-        f"steps {args.steps}  strategy {args.strategy}",
+        f"steps {args.steps}  strategy {args.strategy}  threshold {args.threshold}",
         flush=True,
     )
     protocol = {
@@ -637,6 +637,7 @@ def run(args):
         "decoding": "greedy",
         "steps": args.steps,
         "strategy": args.strategy,
+        "threshold": args.threshold,
         "block_size": 32,
         "max_new_tokens": args.max_new_tokens,
         "metric": "accuracy",
